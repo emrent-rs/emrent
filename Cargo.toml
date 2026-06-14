@@ -1,0 +1,15 @@
+[workspace]
+
+members = [
+	"crates/emrent",
+	"crates/emrent-bencode",
+	"crates/emrent-metainfo",
+	"crates/emrent-tracker",
+	"crates/emrent-dht",
+	"crates/emrent-peer",
+	"crates/emrent-pieces",
+]
+
+resolver = "2"
+
+
