@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-	"crates/emrent",
+	"apps/desktop/src-tauri",
 	"crates/emrent-bencode",
 	"crates/emrent-metainfo",
 	"crates/emrent-tracker",
@@ -12,4 +12,7 @@ members = [
 
 resolver = "2"
 
+license = "MIT OR Apache-2.0"
 
+[patch.crates-io]
+brotli = { path = "patches/brotli" }
