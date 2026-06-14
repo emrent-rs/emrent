@@ -16,3 +16,30 @@ license = "MIT OR Apache-2.0"
 
 [patch.crates-io]
 brotli = { path = "patches/brotli" }
+
+[workspace.dependencies]
+
+# async runtime
+tokio = { version = "1", features = ["full"] }
+
+# serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_bencode = "0.2"
+
+# error handling
+anyhow = "1"
+thiserror = "2"
+
+# logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# networking
+reqwest = { version = "0.12", features = ["json"] }
+url = "2"
+
+# utilities
+sha1 = "0.10"
+bytes = "1"
+rand = "0.9"
