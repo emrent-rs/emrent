@@ -1,49 +1,69 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+interface TorrentInfo {
+  name: string;
+  total_size: number;
+  piece_count: number;
+  info_hash: string;
+  is_multi_file: boolean;
+  announce: string | null;
+  comment: string | null;
+  created_by: string | null;
+}
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+function App() {
+  const [torrentInfo, setTorrentInfo] = useState<TorrentInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function selectTorrentFile() {
+    const path = await open({
+      multiple: false,
+      filters: [{ name: "Torrent", extensions: ["torrent"] }],
+    });
+
+    if (!path) return;
+
+    try {
+      const info = await invoke<TorrentInfo>("parse_torrent_file", { path });
+      setTorrentInfo(info);
+      setError(null);
+    } catch (err) {
+      setError(String(err));
+      setTorrentInfo(null);
+    }
+  }
+
+  async function testInvoke() {
+		  try {
+				  const result = await invoke("greet", { name: "test" });
+				  console.log("IPC works:", result);
+		  } catch (err) {
+				  console.log("IPC failed:", err);
+		  }
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>emrent</h1>
+      <button onClick={selectTorrentFile}>Open Torrent File</button>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      {torrentInfo && (
+        <div>
+          <p><strong>Name:</strong> {torrentInfo.name}</p>
+          <p><strong>Size:</strong> {torrentInfo.total_size} bytes</p>
+          <p><strong>Pieces:</strong> {torrentInfo.piece_count}</p>
+          <p><strong>Info Hash:</strong> {torrentInfo.info_hash}</p>
+          <p><strong>Multi-file:</strong> {torrentInfo.is_multi_file ? "Yes" : "No"}</p>
+          <p><strong>Tracker:</strong> {torrentInfo.announce ?? "None"}</p>
+          <p><strong>Comment:</strong> {torrentInfo.comment ?? "None"}</p>
+          <p><strong>Created by:</strong> {torrentInfo.created_by ?? "None"}</p>
+        </div>
+      )}
     </main>
   );
 }
