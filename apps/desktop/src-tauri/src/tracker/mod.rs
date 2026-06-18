@@ -2,6 +2,7 @@
 
 pub mod announce;
 pub mod response;
+pub mod client;
 
 use crate::torrent::info_hash::InfoHash;
 use crate::torrent::peer_id::PeerId;
