@@ -1,3 +1,4 @@
+#![allow(unused)]
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -22,8 +23,8 @@ pub struct Torrent {
 pub struct Info {
     pub name: String,
 
-    #[serde(rename = "piece-length")]
-    pub piece_length: u64,
+    // #[serde(rename = "piece-length")]
+    // pub piece_length: u64,
 
     pub pieces: serde_bytes::ByteBuf,
     pub private: Option<u8>,
