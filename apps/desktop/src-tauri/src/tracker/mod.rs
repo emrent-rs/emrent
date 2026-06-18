@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 pub mod announce;
+pub mod response;
 
 use crate::torrent::info_hash::InfoHash;
 use crate::torrent::peer_id::PeerId;
