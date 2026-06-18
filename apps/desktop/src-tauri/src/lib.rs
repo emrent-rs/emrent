@@ -1,5 +1,6 @@
 mod torrent;
 mod commands;
+mod tracker;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
