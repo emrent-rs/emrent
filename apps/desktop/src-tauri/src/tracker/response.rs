@@ -24,7 +24,7 @@ impl AnnounceResponse {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let raw: RawAnnounceResponse = serde_bencode::from_bytes(bytes)?;
 
-        if raw.peers.len() % 6 != 0 {
+        if !raw.peers.len().is_multiple_of(6) {
             return Err(anyhow!("invalid peers length: {} bytes", raw.peers.len()));
         }
 

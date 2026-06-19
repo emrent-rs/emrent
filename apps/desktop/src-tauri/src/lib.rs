@@ -1,6 +1,7 @@
 mod torrent;
 mod commands;
 mod tracker;
+mod peer;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -16,6 +17,7 @@ pub fn run() {
             greet,
             commands::parse_torrent_file,
             commands::announce_to_tracker,
+            commands::connect_to_peer_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
