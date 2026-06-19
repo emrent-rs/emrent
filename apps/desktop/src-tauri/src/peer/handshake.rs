@@ -61,6 +61,10 @@ pub async fn perform_handshake(
     peer_id: PeerId,
 ) -> Result<Handshake> {
     let handshake = Handshake::new(info_hash, peer_id);
+    let bytes = handshake.to_bytes();
+    
+    println!("handshake length: {}", bytes.len());
+    println!("handshake bytes: {:?}", bytes);
     stream.write_all(&handshake.to_bytes()).await?;
 
     let mut response = [0u8; 68];
