@@ -1,5 +1,6 @@
 mod torrent;
 mod commands;
+mod tracker;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -13,7 +14,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
-            commands::parse_torrent_file
+            commands::parse_torrent_file,
+            commands::announce_to_tracker,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

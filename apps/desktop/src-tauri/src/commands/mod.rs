@@ -44,3 +44,51 @@ pub fn parse_torrent_file(path: String) -> Result<TorrentInfo, String> {
 }
 
 
+use crate::tracker::client::announce;
+use crate::tracker::response::Peer;
+use crate::tracker::AnnounceRequest;
+use crate::torrent::peer_id::generate_peer_id;
+
+#[derive(Debug, Serialize)]
+pub struct PeerInfo {
+    pub ip: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnnounceResult {
+    pub interval: u64,
+    pub peers: Vec<PeerInfo>,
+}
+
+#[tauri::command]
+pub async fn announce_to_tracker (
+    tracker_url: String,
+    info_hash: String,
+    total_size: u64,
+) -> Result<AnnounceResult, String> {
+    let mut hash = [0u8; 20];
+    hex::decode_to_slice(&info_hash, &mut hash)
+        .map_err(|e| e.to_string())?;
+
+    let peer_id = generate_peer_id();
+
+    let request = AnnounceRequest::new(hash, peer_id, total_size);
+
+    let response = announce(&tracker_url, &request)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let peers = response.peers
+        .into_iter()
+        .map(|p| PeerInfo {
+            ip: p.ip.to_string(),
+            port: p.port,
+        })
+        .collect();
+
+        Ok(AnnounceResult {
+            interval: response.interval,
+            peers,
+        })
+}

@@ -14,9 +14,21 @@ interface TorrentInfo {
   created_by: string | null;
 }
 
+interface PeerInfo {
+  ip: string;
+  port: number;
+}
+
+interface AnnounceResult {
+  interval: number;
+  peers: PeerInfo[];
+}
+
 function App() {
   const [torrentInfo, setTorrentInfo] = useState<TorrentInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [peers, setPeers] = useState<PeerInfo[] | null>(null);
+  const [announcing, setAnnouncing] = useState(false);
 
   async function selectTorrentFile() {
     const path = await open({
@@ -33,6 +45,29 @@ function App() {
     } catch (err) {
       setError(String(err));
       setTorrentInfo(null);
+    }
+  }
+
+  async function announceToTracker() {
+    if (!torrentInfo) return;
+    if (!torrentInfo.announce) {
+      setError("this torrent has no tracker url");
+      return;
+    }
+
+    try {
+      setAnnouncing(true);
+      const result = await invoke<AnnounceResult>("announce_to_tracker", {
+        trackerUrl: torrentInfo.announce,
+        infoHash: torrentInfo.info_hash,
+        totalSize: torrentInfo.total_size,
+      });
+      setPeers(result.peers);
+      setError(null);
+    } catch (err) {
+      setError(String(error));
+    } finally {
+      setAnnouncing(false);
     }
   }
 
@@ -64,8 +99,24 @@ function App() {
           <p><strong>Created by:</strong> {torrentInfo.created_by ?? "None"}</p>
         </div>
       )}
+      {torrentInfo && (
+        <button onClick={announceToTracker} disabled={announcing}>
+          {announcing ? "Announcing..." : "Find Peers" }
+        </button>
+      )}
+
+      {peers && (
+        <div>
+          <p><strong>Peers found: {peers.length}</strong></p>
+          {peers.map((peer, index) => (
+            <p key={index}>{peer.ip}:{peer.port}</p>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
 
 export default App;
+
+

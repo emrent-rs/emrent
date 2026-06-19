@@ -32,6 +32,7 @@ url = { workspace = true }
 sha1 = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
+hex.workspace = true
 
 [build-dependencies]
 tauri-build = { version = "2.6.1", features = [] }
