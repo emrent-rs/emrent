@@ -143,13 +143,14 @@ npm run tauri build
 
 | Phase | Description | Status |
 |---|---|---|
-| 1 | Torrent file parsing and info hash computation | 🚧 In progress |
-| 2 | Tracker communication (HTTP + UDP) | ⏳ Planned |
-| 3 | Peer handshake and wire protocol | ⏳ Planned |
-| 4 | Piece downloading and SHA-1 verification | ⏳ Planned |
+| 1 | Torrent file parsing and info hash computation | ✅ In progress |
+| 2 | Tracker communication (HTTP + UDP) | ✅ Planned |
+| 3 | Peer handshake and wire protocol | ✅ Planned |
+| 4 | Piece downloading and SHA-1 verification | 🚧 Planned |
 | 5 | Piece selection strategy and peer management | ⏳ Planned |
 | 6 | Seeding and uploading | ⏳ Planned |
-| 7 | DHT (Distributed Hash Table) | ⏳ Planned |
+| 7 | DHT (Distributed Hash Table) | ⏳ Planned |tauri/src/peer$ git restore messages.rs
+error: pathspec 'messages.rs' did not match any fi
 | 8 | Magnet link support | ⏳ Planned |
 | 9 | Replace public crates with emrent-* implementations | ⏳ Planned |
 
