@@ -17,7 +17,8 @@ pub fn compute_info_hash(torrent_bytes: &[u8]) -> Result<InfoHash> {
         let mut hasher = Sha1::new();
         hasher.update(info_bytes);
         let info_hash = hasher.finalize();
-        return Ok(info_hash.into());
+        
+        Ok(info_hash.into())
     } else {
         anyhow::bail!("torrent file is not a bencode dictionary")
     }

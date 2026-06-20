@@ -3,6 +3,11 @@
 use serde::Serialize;
 use crate::torrent::metainfo::Torrent;
 use crate::torrent::info_hash::{compute_info_hash, InfoHash};
+use crate::tracker::client::announce;
+use crate::tracker::response::Peer;
+use crate::tracker::AnnounceRequest;
+use crate::torrent::peer_id::generate_peer_id;
+use crate::peer::connection::connect_to_peer;
 
 #[derive(Debug, Serialize)]
 pub struct TorrentInfo {
@@ -35,7 +40,7 @@ pub fn parse_torrent_file(path: String) -> Result<TorrentInfo, String> {
         name: torrent.info.name.clone(),
         total_size: torrent.total_size(),
         piece_count: torrent.piece_count(),
-        info_hash: info_hash,
+        info_hash,
         is_multi_file: torrent.is_multi_file(),
         announce: torrent.announce,
         comment: torrent.comment,
@@ -44,10 +49,6 @@ pub fn parse_torrent_file(path: String) -> Result<TorrentInfo, String> {
 }
 
 
-use crate::tracker::client::announce;
-use crate::tracker::response::Peer;
-use crate::tracker::AnnounceRequest;
-use crate::torrent::peer_id::generate_peer_id;
 
 #[derive(Debug, Serialize)]
 pub struct PeerInfo {
@@ -91,4 +92,39 @@ pub async fn announce_to_tracker (
             interval: response.interval,
             peers,
         })
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConnectionResult {
+    pub peer_id: String,
+    pub ip: String,
+    pub port: u16,
+}
+
+#[tauri::command]
+pub async fn connect_to_peer_command(
+    ip: String, port: u16, info_hash: String,
+) -> Result<ConnectionResult, String> {
+    let mut hash = [0u8; 20];
+    hex::decode_to_slice(&info_hash, &mut hash)
+        .map_err(|e| e.to_string())?;
+
+    let peer_id = generate_peer_id();
+
+    let connection = connect_to_peer(&ip, port, hash, peer_id)
+        .await 
+        .map_err(|e| e.to_string())?;
+
+    let peer_id_hex = connection
+        .handshake
+        .peer_id
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
+
+    Ok(ConnectionResult {
+        peer_id: peer_id_hex,
+        ip,
+        port,
+    })
 }

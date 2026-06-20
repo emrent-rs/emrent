@@ -24,11 +24,18 @@ interface AnnounceResult {
   peers: PeerInfo[];
 }
 
+interface ConnectionResult {
+  peer_id: string;
+  ip: string;
+  port: number;
+}
+
 function App() {
   const [torrentInfo, setTorrentInfo] = useState<TorrentInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [peers, setPeers] = useState<PeerInfo[] | null>(null);
   const [announcing, setAnnouncing] = useState(false);
+  const [connection, setConnection] = useState<ConnectionResult | null>(null);
 
   async function selectTorrentFile() {
     const path = await open({
@@ -71,13 +78,20 @@ function App() {
     }
   }
 
-  async function testInvoke() {
-		  try {
-				  const result = await invoke("greet", { name: "test" });
-				  console.log("IPC works:", result);
-		  } catch (err) {
-				  console.log("IPC failed:", err);
-		  }
+  async function connectToPeer(ip: string, port: number) {
+    if (!torrentInfo) return;
+
+    try {
+      const result = await invoke<ConnectionResult>("connect_to_peer_command", {
+        ip,
+        port,
+        infoHash: torrentInfo.info_hash,
+      });
+      setConnection(result);
+      setError(null);
+    } catch (err) {
+      setError(String(err))
+    }
   }
 
   return (
@@ -109,8 +123,20 @@ function App() {
         <div>
           <p><strong>Peers found: {peers.length}</strong></p>
           {peers.map((peer, index) => (
-            <p key={index}>{peer.ip}:{peer.port}</p>
+            <div key={index}>
+              <span>{peer.ip}:{peer.port}</span>
+              <button onClick={() => connectToPeer(peer.ip, peer.port)}>
+                Connect
+              </button>
+            </div>
           ))}
+        </div>
+      )}
+
+      {connection && (
+        <div>
+          <p><strong>Connected to:</strong> {connection.ip}:{connection.port}</p>
+          <p><strong>Peer ID:</strong> {connection.peer_id}</p>
         </div>
       )}
     </main>
