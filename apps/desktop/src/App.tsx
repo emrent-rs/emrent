@@ -78,15 +78,6 @@ function App() {
     }
   }
 
-  async function testInvoke() {
-		  try {
-				  const result = await invoke("greet", { name: "test" });
-				  console.log("IPC works:", result);
-		  } catch (err) {
-				  console.log("IPC failed:", err);
-		  }
-  }
-
   async function connectToPeer(ip: string, port: number) {
     if (!torrentInfo) return;
 
