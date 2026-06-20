@@ -1,10 +1,10 @@
 #![allow(unused)]
 
+use crate::torrent::info_hash::InfoHash;
+use crate::torrent::peer_id::PeerId;
 use anyhow::{anyhow, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use crate::torrent::info_hash::InfoHash;
-use crate::torrent::peer_id::PeerId;
 
 const PROTOCOL: &str = "Bittorrent protocol";
 const RESERVED: [u8; 8] = [0u8; 8];
@@ -42,7 +42,7 @@ impl Handshake {
 
         let pstr = std::str::from_utf8(&bytes[1..20])?;
         if pstr != PROTOCOL {
-            return Err(anyhow!("invalid protocol: {}", pstr))
+            return Err(anyhow!("invalid protocol: {}", pstr));
         }
 
         let mut info_hash = [0u8; 20];
@@ -51,7 +51,7 @@ impl Handshake {
         let mut peer_id = [0u8; 20];
         peer_id.copy_from_slice(&bytes[48..68]);
 
-        Ok( Self { info_hash, peer_id })
+        Ok(Self { info_hash, peer_id })
     }
 }
 
@@ -62,7 +62,7 @@ pub async fn perform_handshake(
 ) -> Result<Handshake> {
     let handshake = Handshake::new(info_hash, peer_id);
     let bytes = handshake.to_bytes();
-    
+
     // println!("handshake length: {}", bytes.len());
     // println!("handshake bytes: {:?}", bytes);
     stream.write_all(&handshake.to_bytes()).await?;

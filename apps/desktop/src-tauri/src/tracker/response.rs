@@ -1,6 +1,6 @@
-use std::net::Ipv4Addr;
-use serde::Deserialize;
 use anyhow::{anyhow, Result};
+use serde::Deserialize;
+use std::net::Ipv4Addr;
 
 #[derive(Debug, Deserialize)]
 struct RawAnnounceResponse {
@@ -28,7 +28,8 @@ impl AnnounceResponse {
             return Err(anyhow!("invalid peers length: {} bytes", raw.peers.len()));
         }
 
-        let peers = raw.peers 
+        let peers = raw
+            .peers
             .chunks(6)
             .map(|chunk| {
                 let ip = Ipv4Addr::new(chunk[0], chunk[1], chunk[2], chunk[3]);
@@ -39,7 +40,7 @@ impl AnnounceResponse {
 
         Ok(AnnounceResponse {
             interval: raw.interval,
-            peers
+            peers,
         })
     }
 }

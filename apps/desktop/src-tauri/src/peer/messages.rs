@@ -48,8 +48,12 @@ impl Message {
                 bytes.extend_from_slice(bitfield);
                 bytes
             }
-            
-            Message::Request { index, begin, length } => {
+
+            Message::Request {
+                index,
+                begin,
+                length,
+            } => {
                 let mut bytes = vec![0, 0, 0, 13, 6];
                 bytes.extend_from_slice(&index.to_be_bytes());
                 bytes.extend_from_slice(&begin.to_be_bytes());
@@ -57,7 +61,11 @@ impl Message {
                 bytes
             }
 
-            Message::Piece { index, begin, block } => {
+            Message::Piece {
+                index,
+                begin,
+                block,
+            } => {
                 let len = (9 + block.len()) as u32;
                 let mut bytes = len.to_be_bytes().to_vec();
                 bytes.push(7);
@@ -112,7 +120,11 @@ impl Message {
                 let index = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
                 let begin = u32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]);
                 let length = u32::from_be_bytes([payload[8], payload[9], payload[10], payload[11]]);
-                Ok(Message::Request { index, begin, length })
+                Ok(Message::Request {
+                    index,
+                    begin,
+                    length,
+                })
             }
 
             7 => {
@@ -123,7 +135,11 @@ impl Message {
                 let index = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
                 let begin = u32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]);
                 let block = payload[8..].to_vec();
-                Ok(Message::Piece { index, begin, block })
+                Ok(Message::Piece {
+                    index,
+                    begin,
+                    block,
+                })
             }
 
             _ => Err(anyhow!("unknown message id: {}", id)),

@@ -1,13 +1,13 @@
 #![allow(unused)]
 
-use serde::Serialize;
-use crate::torrent::metainfo::Torrent;
+use crate::peer::connection::connect_to_peer;
 use crate::torrent::info_hash::{compute_info_hash, InfoHash};
+use crate::torrent::metainfo::Torrent;
+use crate::torrent::peer_id::generate_peer_id;
 use crate::tracker::client::announce;
 use crate::tracker::response::Peer;
 use crate::tracker::AnnounceRequest;
-use crate::torrent::peer_id::generate_peer_id;
-use crate::peer::connection::connect_to_peer;
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct TorrentInfo {
@@ -25,11 +25,9 @@ pub struct TorrentInfo {
 pub fn parse_torrent_file(path: String) -> Result<TorrentInfo, String> {
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
 
-    let torrent = serde_bencode::from_bytes::<Torrent>(&bytes)
-        .map_err(|e| e.to_string())?;
+    let torrent = serde_bencode::from_bytes::<Torrent>(&bytes).map_err(|e| e.to_string())?;
 
-    let hash = compute_info_hash(&bytes)
-        .map_err(|e| e.to_string())?;
+    let hash = compute_info_hash(&bytes).map_err(|e| e.to_string())?;
 
     let info_hash = hash
         .iter()
@@ -48,8 +46,6 @@ pub fn parse_torrent_file(path: String) -> Result<TorrentInfo, String> {
     })
 }
 
-
-
 #[derive(Debug, Serialize)]
 pub struct PeerInfo {
     pub ip: String,
@@ -63,14 +59,13 @@ pub struct AnnounceResult {
 }
 
 #[tauri::command]
-pub async fn announce_to_tracker (
+pub async fn announce_to_tracker(
     tracker_url: String,
     info_hash: String,
     total_size: u64,
 ) -> Result<AnnounceResult, String> {
     let mut hash = [0u8; 20];
-    hex::decode_to_slice(&info_hash, &mut hash)
-        .map_err(|e| e.to_string())?;
+    hex::decode_to_slice(&info_hash, &mut hash).map_err(|e| e.to_string())?;
 
     let peer_id = generate_peer_id();
 
@@ -80,7 +75,8 @@ pub async fn announce_to_tracker (
         .await
         .map_err(|e| e.to_string())?;
 
-    let peers = response.peers
+    let peers = response
+        .peers
         .into_iter()
         .map(|p| PeerInfo {
             ip: p.ip.to_string(),
@@ -88,10 +84,10 @@ pub async fn announce_to_tracker (
         })
         .collect();
 
-        Ok(AnnounceResult {
-            interval: response.interval,
-            peers,
-        })
+    Ok(AnnounceResult {
+        interval: response.interval,
+        peers,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -103,16 +99,17 @@ pub struct ConnectionResult {
 
 #[tauri::command]
 pub async fn connect_to_peer_command(
-    ip: String, port: u16, info_hash: String,
+    ip: String,
+    port: u16,
+    info_hash: String,
 ) -> Result<ConnectionResult, String> {
     let mut hash = [0u8; 20];
-    hex::decode_to_slice(&info_hash, &mut hash)
-        .map_err(|e| e.to_string())?;
+    hex::decode_to_slice(&info_hash, &mut hash).map_err(|e| e.to_string())?;
 
     let peer_id = generate_peer_id();
 
     let connection = connect_to_peer(&ip, port, hash, peer_id)
-        .await 
+        .await
         .map_err(|e| e.to_string())?;
 
     let peer_id_hex = connection

@@ -1,15 +1,18 @@
 #![allow(unused)]
 
 pub mod announce;
-pub mod response;
 pub mod client;
+pub mod response;
 
 use crate::torrent::info_hash::InfoHash;
 use crate::torrent::peer_id::PeerId;
 
 #[derive(Debug)]
 pub enum AnnounceEvent {
-    Started, Stopped, Completed, Empty,
+    Started,
+    Stopped,
+    Completed,
+    Empty,
 }
 
 impl std::fmt::Display for AnnounceEvent {
@@ -36,9 +39,7 @@ pub struct AnnounceRequest {
 }
 
 impl AnnounceRequest {
-    pub fn new(
-        info_hash: InfoHash, peer_id: PeerId, left: u64,
-    ) -> Self {
+    pub fn new(info_hash: InfoHash, peer_id: PeerId, left: u64) -> Self {
         Self {
             info_hash,
             peer_id,
@@ -47,7 +48,7 @@ impl AnnounceRequest {
             downloaded: 0,
             left,
             compact: true,
-            event: AnnounceEvent::Started
+            event: AnnounceEvent::Started,
         }
     }
 }

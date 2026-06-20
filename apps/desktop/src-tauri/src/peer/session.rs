@@ -1,11 +1,11 @@
 #![allow(unused)]
 
-use anyhow::{anyhow, Result};
-use tokio::net::TcpStream;
-use crate::torrent::info_hash::InfoHash;
-use crate::torrent::peer_id::PeerId;
 use super::handshake::perform_handshake;
 use super::messages::Message;
+use crate::torrent::info_hash::InfoHash;
+use crate::torrent::peer_id::PeerId;
+use anyhow::{anyhow, Result};
+use tokio::net::TcpStream;
 
 pub struct PeerSession {
     stream: TcpStream,
@@ -16,11 +16,7 @@ pub struct PeerSession {
 }
 
 impl PeerSession {
-    pub async fn new(
-        mut stream: TcpStream,
-        info_hash: InfoHash,
-        peer_id: PeerId
-    ) -> Result<Self> {
+    pub async fn new(mut stream: TcpStream, info_hash: InfoHash, peer_id: PeerId) -> Result<Self> {
         let handshake = perform_handshake(&mut stream, info_hash, peer_id).await?;
 
         let mut session = Self {
@@ -44,7 +40,7 @@ impl PeerSession {
                 self.bitfield = bitfield;
                 Ok(())
             }
-            _ => Err(anyhow!("expected bitfield message, got something else"))
+            _ => Err(anyhow!("expected bitfield message, got something else")),
         }
     }
 
@@ -60,11 +56,12 @@ impl PeerSession {
             match message {
                 Message::Unchoke => {
                     self.choked = false;
-                        return Ok(());
-                },
+                    return Ok(());
+                }
                 Message::Have(index) => {
                     self.update_bitfield(index);
-                },
+                }
+                Message::KeepAlive => {}
                 _ => {}
             }
         }
@@ -87,27 +84,33 @@ impl PeerSession {
         self.bitfield[byte_index] & (1 << bit_index) != 0
     }
 
-    pub async fn request_block(
-        &mut self, index: u32, begin: u32, length: u32
-    ) -> Result<Vec<u8>> {
+    pub async fn request_block(&mut self, index: u32, begin: u32, length: u32) -> Result<Vec<u8>> {
         if self.choked {
             return Err(anyhow!("Peer has choked us"));
         }
 
-        Message::Request { index, begin, length }
-            .send_to(&mut self.stream)
-            .await?;
+        Message::Request {
+            index,
+            begin,
+            length,
+        }
+        .send_to(&mut self.stream)
+        .await?;
 
         loop {
             let message = Message::read_from(&mut self.stream).await?;
             match message {
-                Message::Piece { index: i, begin: b, block } if i == index && b == begin => {
+                Message::Piece {
+                    index: i,
+                    begin: b,
+                    block,
+                } if i == index && b == begin => {
                     return Ok(block);
                 }
                 Message::Choke => {
                     self.choked = true;
-                    return Err(anyhow!("peer choked us mid-download"))
-                },
+                    return Err(anyhow!("peer choked us mid-download"));
+                }
                 Message::KeepAlive => {}
                 _ => {}
             }
