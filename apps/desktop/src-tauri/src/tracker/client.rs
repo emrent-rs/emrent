@@ -1,12 +1,9 @@
-use anyhow::Result;
 use super::announce::build_announce_url;
 use super::response::AnnounceResponse;
 use super::AnnounceRequest;
+use anyhow::Result;
 
-pub async fn announce(
-    tracker_url: &str,
-    request: &AnnounceRequest,
-) -> Result<AnnounceResponse> {
+pub async fn announce(tracker_url: &str, request: &AnnounceRequest) -> Result<AnnounceResponse> {
     let url = build_announce_url(tracker_url, request);
 
     let response = reqwest::get(&url).await?;

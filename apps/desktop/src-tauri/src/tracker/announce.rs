@@ -1,6 +1,6 @@
+use super::AnnounceRequest;
 use crate::torrent::info_hash::InfoHash;
 use crate::torrent::peer_id::PeerId;
-use super::AnnounceRequest;
 
 fn url_encode_bytes(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("%{:02x}", b)).collect()
@@ -12,6 +12,14 @@ pub fn build_announce_url(tracker_url: &str, request: &AnnounceRequest) -> Strin
 
     format!(
         "{}?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}&compact={}&event={}",
-        tracker_url, info_hash, peer_id, request.port, request.uploaded, request.downloaded, request.left, if request.compact { 1 } else { 0 }, request.event,
+        tracker_url,
+        info_hash,
+        peer_id,
+        request.port,
+        request.uploaded,
+        request.downloaded,
+        request.left,
+        if request.compact { 1 } else { 0 },
+        request.event,
     )
 }
