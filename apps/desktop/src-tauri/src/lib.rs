@@ -1,4 +1,8 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod commands;
+mod peer;
+mod torrent;
+mod tracker;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -8,7 +12,13 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            commands::parse_torrent_file,
+            commands::announce_to_tracker,
+            commands::connect_to_peer_command,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
