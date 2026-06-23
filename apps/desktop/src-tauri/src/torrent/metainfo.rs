@@ -23,7 +23,7 @@ pub struct Torrent {
 pub struct Info {
     pub name: String,
 
-    #[serde(rename = "piece-length")]
+    #[serde(rename = "piece length")]
     pub piece_length: u64,
     pub pieces: serde_bytes::ByteBuf,
     pub private: Option<u8>,

@@ -18,6 +18,7 @@ pub fn run() {
             commands::parse_torrent_file,
             commands::announce_to_tracker,
             commands::connect_to_peer_command,
+            commands::start_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -181,6 +181,8 @@ impl DownloadManager {
         for handle in handles {
             let _ = handle.await;
         }
+
+        let _ = app_handle.emit("download-complete", ());
         
         Ok(())
     }
