@@ -19,7 +19,7 @@ pub struct Torrent {
     pub comment: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Info {
     pub name: String,
 
@@ -31,7 +31,7 @@ pub struct Info {
     pub files: Option<Vec<File>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct File {
     pub length: u64,
     pub path: Vec<String>,
