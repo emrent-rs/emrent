@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 interface TorrentInfo {
@@ -30,12 +31,36 @@ interface ConnectionResult {
   port: number;
 }
 
+interface ProgressPayload {
+  downloaded: number;
+  total: number;
+  piece_index: number;
+}
+
 function App() {
   const [torrentInfo, setTorrentInfo] = useState<TorrentInfo | null>(null);
+  const [torrentPath, setTorrentPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [peers, setPeers] = useState<PeerInfo[] | null>(null);
   const [announcing, setAnnouncing] = useState(false);
   const [connection, setConnection] = useState<ConnectionResult | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState<ProgressPayload | null>(null);
+
+  useEffect(() => {
+    const unlistenProgress = listen<ProgressPayload>("download-progress", (event) => {
+      setProgress(event.payload);
+    });
+
+    const unlistenComplete = listen("download-complete", () => {
+      setDownloading(false);
+    });
+    
+    return () => {
+      unlistenProgress.then((f) => f());
+      unlistenComplete.then((f) => f());
+    };
+  }, []);
 
   async function selectTorrentFile() {
     const path = await open({
@@ -44,6 +69,8 @@ function App() {
     });
 
     if (!path) return;
+
+    setTorrentPath(path);
 
     try {
       const info = await invoke<TorrentInfo>("parse_torrent_file", { path });
@@ -72,7 +99,7 @@ function App() {
       setPeers(result.peers);
       setError(null);
     } catch (err) {
-      setError(String(error));
+      setError(String(err));
     } finally {
       setAnnouncing(false);
     }
@@ -90,7 +117,31 @@ function App() {
       setConnection(result);
       setError(null);
     } catch (err) {
-      setError(String(err))
+      setError(String(err));
+    }
+  }
+
+  async function startDownload() {
+    if (!torrentInfo || !torrentPath) return;
+
+    const outputDir = await open({
+      directory: true,
+      multiple: false,
+    });
+
+    if (!outputDir) return;
+
+    try {
+      setDownloading(true);
+      setProgress(null);
+      await invoke("start_download", {
+        torrentPath,
+        outputDir,
+      });
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -113,10 +164,26 @@ function App() {
           <p><strong>Created by:</strong> {torrentInfo.created_by ?? "None"}</p>
         </div>
       )}
+
       {torrentInfo && (
-        <button onClick={announceToTracker} disabled={announcing}>
-          {announcing ? "Announcing..." : "Find Peers" }
+        <button onClick={() => announceToTracker()} disabled={announcing}>
+          {announcing ? "Announcing..." : "Find Peers"}
         </button>
+      )}
+
+      {torrentInfo && (
+        <button onClick={() => startDownload()} disabled={downloading}>
+          {downloading ? "Downloading..." : "Download"}
+        </button>
+      )}
+
+      {progress && (
+        <div>
+          <p>
+            <strong>Progress:</strong> {progress.downloaded} / {progress.total} pieces
+          </p>
+          <progress value={progress.downloaded} max={progress.total} />
+        </div>
       )}
 
       {peers && (
@@ -144,5 +211,3 @@ function App() {
 }
 
 export default App;
-
-

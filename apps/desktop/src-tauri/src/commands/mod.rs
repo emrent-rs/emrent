@@ -7,7 +7,10 @@ use crate::torrent::peer_id::generate_peer_id;
 use crate::tracker::client::announce;
 use crate::tracker::response::Peer;
 use crate::tracker::AnnounceRequest;
+use crate::peer::manager::DownloadManager;
+use std::path::PathBuf;
 use serde::Serialize;
+use tauri::AppHandle;
 
 #[derive(Debug, Serialize)]
 pub struct TorrentInfo {
@@ -124,4 +127,52 @@ pub async fn connect_to_peer_command(
         ip,
         port,
     })
+}
+
+
+#[tauri::command]
+pub async fn start_download(
+    app_handle: AppHandle,
+    torrent_path: String,
+    output_dir: String,
+) -> Result<(), String> {
+    let bytes = std::fs::read(&torrent_path)
+        .map_err(|e| e.to_string())?;
+
+    let torrent: Torrent = serde_bencode::from_bytes(&bytes)
+        .map_err(|e| e.to_string())?;
+
+    let info_hash = compute_info_hash(&bytes)
+        .map_err(|e| e.to_string())?;
+
+    let peer_id = generate_peer_id();
+
+    let tracker_url = torrent.announce
+        .as_ref()
+        .ok_or("torrent has no tracker url".to_string())?;
+
+    let total_size = match &torrent.info.files {
+        None => torrent.info.length.unwrap_or(0),
+        Some(files) => files.iter().map(|f| f.length).sum(),
+    };
+
+    let request = AnnounceRequest::new(info_hash, peer_id, total_size);
+
+    let response = announce(tracker_url, &request)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let manager = DownloadManager::new(
+        torrent,
+        info_hash,
+        peer_id,
+        PathBuf::from(output_dir),
+    );
+
+    manager.start(response.peers, app_handle)
+        .await
+    .map_err(|e| e.to_string())?;
+    
+    
+    Ok(())
 }
