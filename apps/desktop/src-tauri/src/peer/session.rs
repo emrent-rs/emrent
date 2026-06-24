@@ -6,6 +6,7 @@ use crate::torrent::info_hash::InfoHash;
 use crate::torrent::peer_id::PeerId;
 use anyhow::{anyhow, Result};
 use tokio::net::TcpStream;
+use tokio::time::{timeout, Duration};
 
 pub struct PeerSession {
     stream: TcpStream,
@@ -52,7 +53,13 @@ impl PeerSession {
 
     pub async fn wait_for_unchoke(&mut self) -> Result<()> {
         loop {
-            let message = Message::read_from(&mut self.stream).await?;
+            let message = timeout(
+                Duration::from_secs(30),
+                Message::read_from(&mut self.stream),
+            )
+            .await
+            .map_err(|_| anyhow!("timeout waiting for unchoke"))??;
+
             match message {
                 Message::Unchoke => {
                     self.choked = false;
@@ -98,7 +105,13 @@ impl PeerSession {
         .await?;
 
         loop {
-            let message = Message::read_from(&mut self.stream).await?;
+            let message = timeout(
+                Duration::from_secs(30),
+                Message::read_from(&mut self.stream),
+            )
+            .await
+            .map_err(|_| anyhow!("timeout waiting for piece block"))??;
+
             match message {
                 Message::Piece {
                     index: i,

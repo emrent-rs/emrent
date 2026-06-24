@@ -1,10 +1,10 @@
 #![allow(unused)]
 
+use crate::torrent::metainfo::{File as TorrentFile, Info};
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::AsyncWriteExt;
-use crate::torrent::metainfo::{Info, File as TorrentFile};
 
 pub struct DiskWriter {
     output_dir: PathBuf,
@@ -32,6 +32,7 @@ impl DiskWriter {
         let mut file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&path)
             .await?;
 
@@ -42,7 +43,12 @@ impl DiskWriter {
         Ok(())
     }
 
-    async fn write_multi_file(&self, piece_offset: u64, data: &[u8], files: &[TorrentFile]) -> Result<()> {
+    async fn write_multi_file(
+        &self,
+        piece_offset: u64,
+        data: &[u8],
+        files: &[TorrentFile],
+    ) -> Result<()> {
         let mut file_start = 0u64;
         let mut data_offset = 0usize;
 
@@ -62,24 +68,25 @@ impl DiskWriter {
             let file_offset = write_start - file_start;
             let data_len = (write_end - write_start) as usize;
 
-            let path = self.output_dir
-                .join(&self.info.name)
-                .join(torrent_file.path.join(std::path::MAIN_SEPARATOR.to_string().as_str()));
+            let path = self.output_dir.join(&self.info.name).join(
+                torrent_file
+                    .path
+                    .join(std::path::MAIN_SEPARATOR.to_string().as_str()),
+            );
 
             self.ensure_dir(&path).await?;
 
             let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(true)
                 .open(&path)
                 .await?;
 
-            tokio::io::AsyncSeekExt::seek(
-                &mut file,
-                std::io::SeekFrom::Start(file_offset),
-            ).await?;
+            tokio::io::AsyncSeekExt::seek(&mut file, std::io::SeekFrom::Start(file_offset)).await?;
 
-            file.write_all(&data[data_offset..data_offset + data_len]).await?;
+            file.write_all(&data[data_offset..data_offset + data_len])
+                .await?;
 
             data_offset += data_len;
             file_start = file_end;
@@ -87,7 +94,7 @@ impl DiskWriter {
 
         Ok(())
     }
-    
+
     async fn ensure_dir(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
