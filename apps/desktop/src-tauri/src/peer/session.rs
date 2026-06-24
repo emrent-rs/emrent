@@ -55,9 +55,11 @@ impl PeerSession {
         loop {
             let message = timeout(
                 Duration::from_secs(30),
-                Message::read_from(&mut self.stream)
-            ).await.map_err(|_| anyhow!("timeout waiting for unchoke"))??;
-            
+                Message::read_from(&mut self.stream),
+            )
+            .await
+            .map_err(|_| anyhow!("timeout waiting for unchoke"))??;
+
             match message {
                 Message::Unchoke => {
                     self.choked = false;
@@ -105,7 +107,7 @@ impl PeerSession {
         loop {
             let message = timeout(
                 Duration::from_secs(30),
-                Message::read_from(&mut self.stream)
+                Message::read_from(&mut self.stream),
             )
             .await
             .map_err(|_| anyhow!("timeout waiting for piece block"))??;

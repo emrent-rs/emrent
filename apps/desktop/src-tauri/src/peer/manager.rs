@@ -1,18 +1,18 @@
 #![allow(unused)]
 
+use super::disk::DiskWriter;
+use super::pieces::PieceDownloader;
+use super::session::PeerSession;
+use crate::torrent::info_hash::InfoHash;
+use crate::torrent::metainfo::Torrent;
+use crate::torrent::peer_id::PeerId;
+use crate::tracker::response::Peer;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
-use crate::torrent::metainfo::Torrent;
-use crate::torrent::info_hash::InfoHash;
-use crate::torrent::peer_id::PeerId;
-use crate::tracker::response::Peer;
-use super::session::PeerSession;
-use super::pieces::PieceDownloader;
-use super::disk::DiskWriter;
+use tokio::sync::Mutex;
 
 #[derive(Clone, serde::Serialize)]
 pub struct ProgressPayload {
@@ -46,7 +46,7 @@ impl DownloadManager {
     ) -> Self {
         let piece_count = torrent.piece_count();
         let piece_states = vec![PieceState::Pending; piece_count];
-        
+
         Self {
             torrent,
             info_hash,
@@ -57,11 +57,7 @@ impl DownloadManager {
         }
     }
 
-    pub async fn start(
-        &self,
-        peers: Vec<Peer>,
-        app_handle: AppHandle,
-    ) -> Result <()> {
+    pub async fn start(&self, peers: Vec<Peer>, app_handle: AppHandle) -> Result<()> {
         let mut handles = Vec::new();
 
         for peer in peers {
@@ -74,118 +70,107 @@ impl DownloadManager {
             let app_handle = app_handle.clone();
             let total = self.torrent.piece_count() as u32;
 
-            let handle = tokio::spawn(async move {
-                let stream = match tokio::net::TcpStream::connect(
-                    format!("{}:{}", peer.ip, peer.port)
-                ).await {
-                    Ok(stream) => stream,
-                    Err(_) => return,
-                };
+            let handle =
+                tokio::spawn(async move {
+                    let stream =
+                        match tokio::net::TcpStream::connect(format!("{}:{}", peer.ip, peer.port))
+                            .await
+                        {
+                            Ok(stream) => stream,
+                            Err(_) => return,
+                        };
 
-                let mut session = match PeerSession::new(
-                    stream,
-                    info_hash,
-                    peer_id,
-                ).await {
-                    Ok(session) => session,
-                    Err(_) => return,
-                };
+                    let mut session = match PeerSession::new(stream, info_hash, peer_id).await {
+                        Ok(session) => session,
+                        Err(_) => return,
+                    };
 
-                // update rarities from this peer's bitfield
-                {
-                    let mut rarities = piece_rarities.lock().await;
-                    for i in 0..total {
-                        let i = i as u32;
-                        if session.has_piece(i) {
-                            *rarities.entry(i).or_insert(0) += 1;
+                    // update rarities from this peer's bitfield
+                    {
+                        let mut rarities = piece_rarities.lock().await;
+                        for i in 0..total {
+                            if session.has_piece(i) {
+                                *rarities.entry(i).or_insert(0) += 1;
+                            }
                         }
                     }
-                }
 
-                if let Err(_) = session.send_interested().await {
-                    return;
-                }
+                    session.send_interested().await.is_err();
 
-                if let Err(_) = session.wait_for_unchoke().await {
-                    return;
-                }
+                    session.wait_for_unchoke().await.is_err();
 
-                let disk = DiskWriter::new(output_dir, torrent.clone());
+                    let disk = DiskWriter::new(output_dir, torrent.clone());
 
-                loop {
-                    let piece_index = {
-                        let mut states = piece_states.lock().await;
-                        let rarities = piece_rarities.lock().await;
-
-                        let next = Self::select_piece(
-                            &states,
-                            &rarities,
-                            &session,
-                            total,
-                        );
-
-                        match next {
-                            Some(index) => {
-                                states[index as usize] = PieceState::Downloading;
-                                index
-                            }
-                            None => break,
-                        }
-                    };
-
-                    let piece_length = torrent.piece_length as u32;
-                    let total_size = torrent.length.unwrap_or(0) as u32;
-
-                    let length = if piece_index == total - 1 {
-                        total_size - (piece_index * piece_length)
-                    } else {
-                        piece_length
-                    };
-
-                    let hash_start = piece_index as usize * 20;
-                    let mut hash = [0u8; 20];
-                    hash.copy_from_slice(&torrent.pieces[hash_start..hash_start + 20]);
-
-                    let downloader = PieceDownloader::new(piece_index, length, hash);
-
-                    match downloader.download(&mut session).await {
-                        Ok(data) => {
-                            if let Ok(_) = disk.write_piece(piece_index, &data).await {
-                                let mut states = piece_states.lock().await;
-                                states[piece_index as usize] = PieceState::Done;
-
-                                let downloaded = states
-                                    .iter()
-                                    .filter(|s| **s == PieceState::Done)
-                                    .count() as u32;
-
-                                let _ = app_handle.emit("download-progress", ProgressPayload {
-                                    downloaded,
-                                    total,
-                                    piece_index,
-                                });
-                            }
-                        }
-                        Err(e) => {
-                            // let mut states = piece_states.lock().await;
-                            // states[piece_index as usize] = PieceState::Pending;
+                    loop {
+                        let piece_index = {
                             let mut states = piece_states.lock().await;
-                            states[piece_index as usize] = PieceState::Pending;
+                            let rarities = piece_rarities.lock().await;
 
-                            let error_msg = e.to_string();
-                            if error_msg.contains("choked") {
-                                drop(states);
-                                if session.wait_for_unchoke().await.is_err() {
+                            let next = Self::select_piece(&states, &rarities, &session, total);
+
+                            match next {
+                                Some(index) => {
+                                    states[index as usize] = PieceState::Downloading;
+                                    index
+                                }
+                                None => break,
+                            }
+                        };
+
+                        let piece_length = torrent.piece_length as u32;
+                        let total_size = torrent.length.unwrap_or(0) as u32;
+
+                        let length = if piece_index == total - 1 {
+                            total_size - (piece_index * piece_length)
+                        } else {
+                            piece_length
+                        };
+
+                        let hash_start = piece_index as usize * 20;
+                        let mut hash = [0u8; 20];
+                        hash.copy_from_slice(&torrent.pieces[hash_start..hash_start + 20]);
+
+                        let downloader = PieceDownloader::new(piece_index, length, hash);
+
+                        match downloader.download(&mut session).await {
+                            Ok(data) => {
+                                if disk.write_piece(piece_index, &data).await.is_ok() {
+                                    let mut states = piece_states.lock().await;
+                                    states[piece_index as usize] = PieceState::Done;
+
+                                    let downloaded =
+                                        states.iter().filter(|s| **s == PieceState::Done).count()
+                                            as u32;
+
+                                    let _ = app_handle.emit(
+                                        "download-progress",
+                                        ProgressPayload {
+                                            downloaded,
+                                            total,
+                                            piece_index,
+                                        },
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                // let mut states = piece_states.lock().await;
+                                // states[piece_index as usize] = PieceState::Pending;
+                                let mut states = piece_states.lock().await;
+                                states[piece_index as usize] = PieceState::Pending;
+
+                                let error_msg = e.to_string();
+                                if error_msg.contains("choked") {
+                                    drop(states);
+                                    if session.wait_for_unchoke().await.is_err() {
+                                        break;
+                                    }
+                                } else {
                                     break;
                                 }
-                            } else {
-                                break;
                             }
                         }
                     }
-                }
-                
-            });
+                });
 
             handles.push(handle);
         }
@@ -195,7 +180,7 @@ impl DownloadManager {
         }
 
         let _ = app_handle.emit("download-complete", ());
-        
+
         Ok(())
     }
 
@@ -206,9 +191,7 @@ impl DownloadManager {
         total: u32,
     ) -> Option<u32> {
         let mut candidates: Vec<(u32, u32)> = (0..total)
-            .filter(|&i| {
-                states[i as usize] == PieceState::Pending && session.has_piece(i)
-            })
+            .filter(|&i| states[i as usize] == PieceState::Pending && session.has_piece(i))
             .map(|i| {
                 let rarity = rarities.get(&i).copied().unwrap_or(0);
                 (i, rarity)
