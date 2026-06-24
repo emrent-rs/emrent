@@ -1,15 +1,15 @@
 #![allow(unused)]
 
 use crate::peer::connection::connect_to_peer;
+use crate::peer::manager::DownloadManager;
 use crate::torrent::info_hash::{compute_info_hash, InfoHash};
 use crate::torrent::metainfo::Torrent;
 use crate::torrent::peer_id::generate_peer_id;
 use crate::tracker::client::announce;
 use crate::tracker::response::Peer;
 use crate::tracker::AnnounceRequest;
-use crate::peer::manager::DownloadManager;
-use std::path::PathBuf;
 use serde::Serialize;
+use std::path::PathBuf;
 use tauri::AppHandle;
 
 #[derive(Debug, Serialize)]
@@ -129,25 +129,22 @@ pub async fn connect_to_peer_command(
     })
 }
 
-
 #[tauri::command]
 pub async fn start_download(
     app_handle: AppHandle,
     torrent_path: String,
     output_dir: String,
 ) -> Result<(), String> {
-    let bytes = std::fs::read(&torrent_path)
-        .map_err(|e| e.to_string())?;
+    let bytes = std::fs::read(&torrent_path).map_err(|e| e.to_string())?;
 
-    let torrent: Torrent = serde_bencode::from_bytes(&bytes)
-        .map_err(|e| e.to_string())?;
+    let torrent: Torrent = serde_bencode::from_bytes(&bytes).map_err(|e| e.to_string())?;
 
-    let info_hash = compute_info_hash(&bytes)
-        .map_err(|e| e.to_string())?;
+    let info_hash = compute_info_hash(&bytes).map_err(|e| e.to_string())?;
 
     let peer_id = generate_peer_id();
 
-    let tracker_url = torrent.announce
+    let tracker_url = torrent
+        .announce
         .as_ref()
         .ok_or("torrent has no tracker url".to_string())?;
 
@@ -162,17 +159,12 @@ pub async fn start_download(
         .await
         .map_err(|err| err.to_string())?;
 
-    let manager = DownloadManager::new(
-        torrent,
-        info_hash,
-        peer_id,
-        PathBuf::from(output_dir),
-    );
+    let manager = DownloadManager::new(torrent, info_hash, peer_id, PathBuf::from(output_dir));
 
-    manager.start(response.peers, app_handle)
+    manager
+        .start(response.peers, app_handle)
         .await
-    .map_err(|e| e.to_string())?;
-    
-    
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
