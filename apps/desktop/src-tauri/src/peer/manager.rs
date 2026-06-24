@@ -166,9 +166,21 @@ impl DownloadManager {
                                 });
                             }
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            // let mut states = piece_states.lock().await;
+                            // states[piece_index as usize] = PieceState::Pending;
                             let mut states = piece_states.lock().await;
                             states[piece_index as usize] = PieceState::Pending;
+
+                            let error_msg = e.to_string();
+                            if error_msg.contains("choked") {
+                                drop(states);
+                                if session.wait_for_unchoke().await.is_err() {
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }
